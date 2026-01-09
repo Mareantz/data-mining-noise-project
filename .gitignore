@@ -1,0 +1,24 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# IDE settings
+.idea/
+.vscode/
+
+# Large External Datasets (Source)
+MS-SNSD/
+
+# Generated Data files (Intermediate and Final)
+data/
+
+# Output Results
+output/
+
