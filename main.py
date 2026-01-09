@@ -13,9 +13,6 @@ Metrics:
 - SNR (Signal-to-Noise Ratio) Improvement
 - PSNR (Peak Signal-to-Noise Ratio)
 - MSE (Mean Squared Error)
-
-Author: Data Mining Project
-Date: January 2026
 """
 
 import os
@@ -24,7 +21,6 @@ import pandas as pd
 import numpy as np
 import shutil
 
-# Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from src.dataset import generate_dataset, load_audio, save_audio
@@ -41,23 +37,21 @@ from src.visualization import (
 )
 
 
-# Configuration
 CONFIG = {
     'clean_dir': 'data/clean',
     'noise_dir': 'data/noise',
     'mixed_dir': 'data/mixed',
-    'denoised_dir': 'data/denoised',  # NEW: Directory for denoised outputs
+    'denoised_dir': 'data/denoised',
     'output_dir': 'output',
     'charts_dir': 'output/charts',
-    'snr_levels': [0, 5, 10, 15],  # SNR levels in dB
-    'sample_rate': 16000,  # Sample rate for audio processing
-    'butterworth_cutoff': 4000,  # Cutoff frequency for Butterworth filter
-    'butterworth_order': 5,  # Filter order
+    'snr_levels': [0, 5, 10, 15],
+    'sample_rate': 16000,
+    'butterworth_cutoff': 4000,
+    'butterworth_order': 5,
 }
 
 
 def copy_from_local_repo():
-    """Copy audio files from the local MS-SNSD folder."""
     repo_path = 'MS-SNSD'
     if not os.path.exists(repo_path):
         print(f"Error: Local {repo_path} folder not found.")
@@ -69,7 +63,6 @@ def copy_from_local_repo():
     clean_dest = CONFIG['clean_dir']
     noise_dest = CONFIG['noise_dir']
 
-    # Clean files
     if os.path.exists(clean_src):
         files = sorted([f for f in os.listdir(clean_src) if f.endswith('.wav')])[:10]
         if files:
@@ -77,7 +70,6 @@ def copy_from_local_repo():
             for f in files:
                 shutil.copy(os.path.join(clean_src, f), clean_dest)
 
-    # Noise files
     if os.path.exists(noise_src):
         files = sorted([f for f in os.listdir(noise_src) if f.endswith('.wav')])[:5]
         if files:
@@ -115,7 +107,6 @@ def apply_noise_reduction_algorithms(sample):
 
     denoised_signals = {}
 
-    # 1. Low Complexity: Butterworth Low-pass Filter
     try:
         denoised_butterworth = apply_lowpass_butterworth(
             mixed_signal,
@@ -128,7 +119,6 @@ def apply_noise_reduction_algorithms(sample):
         print(f"  Warning: Butterworth filter failed: {e}")
         denoised_signals['Butterworth Filter'] = mixed_signal.copy()
 
-    # 2. Medium Complexity: Spectral Subtraction
     try:
         denoised_spectral = spectral_subtract(
             mixed_signal,
@@ -143,7 +133,6 @@ def apply_noise_reduction_algorithms(sample):
         print(f"  Warning: Spectral Subtraction failed: {e}")
         denoised_signals['Spectral Subtraction'] = mixed_signal.copy()
 
-    # 3. High Complexity: Wiener Filter
     try:
         denoised_wiener = apply_wiener_filter(
             mixed_signal,
@@ -180,10 +169,8 @@ def process_dataset(dataset, save_denoised=True):
     for idx, sample in enumerate(dataset):
         print(f"  [{idx+1}/{total_samples}] Processing: {sample['filename']}")
 
-        # Apply all algorithms
         denoised_signals = apply_noise_reduction_algorithms(sample)
 
-        # Evaluate each algorithm and optionally save denoised outputs
         for algo_name, denoised_signal in denoised_signals.items():
             metrics = evaluate_algorithm(
                 sample['clean_signal'],
@@ -191,13 +178,11 @@ def process_dataset(dataset, save_denoised=True):
                 denoised_signal
             )
 
-            # Create safe algorithm name for filename
             algo_safe = algo_name.replace(' ', '_').lower()
             base_name = os.path.splitext(sample['filename'])[0]
             denoised_filename = f"{base_name}_{algo_safe}.wav"
             denoised_path = os.path.join(denoised_dir, denoised_filename)
 
-            # Save denoised audio file
             if save_denoised:
                 save_audio(denoised_path, denoised_signal, sample['sample_rate'])
 
@@ -214,7 +199,7 @@ def process_dataset(dataset, save_denoised=True):
                 'rmse': metrics['rmse'],
                 'noisy_mse': metrics['noisy_mse'],
                 'noisy_psnr_db': metrics['noisy_psnr_db'],
-                'denoised_file': denoised_filename  # Track output file
+                'denoised_file': denoised_filename
             }
             results.append(result)
 
@@ -230,7 +215,6 @@ def save_results_csv(results_df, output_path):
         results_df.to_csv(output_path, index=False)
         print(f"\nResults saved to: {output_path}")
     except PermissionError:
-        # If file is locked, use timestamped filename
         import time
         timestamp = time.strftime("%Y%m%d_%H%M%S")
         alt_path = output_path.replace('.csv', f'_{timestamp}.csv')
@@ -244,7 +228,6 @@ def generate_all_visualizations(results_df):
 
     print("\nGenerating visualizations...")
 
-    # 1. SNR Improvement comparison bar chart
     plot_comparison_bar_chart(
         results_df,
         'snr_improvement_db',
@@ -252,7 +235,6 @@ def generate_all_visualizations(results_df):
         title='SNR Improvement by Algorithm and Input SNR Level'
     )
 
-    # 2. PSNR comparison bar chart
     plot_comparison_bar_chart(
         results_df,
         'psnr_db',
@@ -260,7 +242,6 @@ def generate_all_visualizations(results_df):
         title='PSNR by Algorithm and Input SNR Level'
     )
 
-    # 3. MSE comparison bar chart
     plot_comparison_bar_chart(
         results_df,
         'mse',
@@ -268,14 +249,12 @@ def generate_all_visualizations(results_df):
         title='MSE by Algorithm and Input SNR Level'
     )
 
-    # 4. Multi-metric comparison
     plot_multi_metric_comparison(
         results_df,
         ['snr_improvement_db', 'psnr_db', 'mse'],
         os.path.join(charts_dir, 'multi_metric_comparison.png')
     )
 
-    # 5. SNR improvement trend
     plot_snr_vs_improvement(
         results_df,
         os.path.join(charts_dir, 'snr_improvement_trend.png')
@@ -283,15 +262,12 @@ def generate_all_visualizations(results_df):
 
 
 def main():
-    """Main entry point for the noise reduction study."""
     print("=" * 70)
     print("COMPARATIVE DATA MINING STUDY OF AUDIO NOISE REDUCTION ALGORITHMS")
     print("=" * 70)
 
-    # Setup directories
     setup_directories()
 
-    # Step 0: Setup Data from Local MS-SNSD
     print("\n[STEP 0] Setting up Audio Data")
     print("-" * 50)
 
@@ -303,7 +279,6 @@ def main():
 
     print(f"✓ Using {len(clean_files)} clean audio files")
 
-    # Step 1: Generate Dataset
     print("\n[STEP 1] Generating Mixed Dataset")
     print("-" * 50)
     dataset = generate_dataset(
@@ -318,7 +293,6 @@ def main():
         print("Error: No dataset generated. Exiting.")
         return
 
-    # Step 2: Process Dataset
     print("\n[STEP 2] Applying Noise Reduction Algorithms")
     print("-" * 50)
     print("Algorithms being evaluated:")
@@ -328,27 +302,22 @@ def main():
 
     results_df = process_dataset(dataset, save_denoised=True)
 
-    # Step 3: Save Results
     print("\n[STEP 3] Saving Results")
     print("-" * 50)
     csv_path = os.path.join(CONFIG['output_dir'], 'results.csv')
     save_results_csv(results_df, csv_path)
 
-    # Step 4: Generate Visualizations
     print("\n[STEP 4] Generating Visualizations")
     print("-" * 50)
     generate_all_visualizations(results_df)
 
-    # Step 5: Generate Summary Report
     print("\n[STEP 5] Generating Summary Report")
     print("-" * 50)
     report_path = os.path.join(CONFIG['output_dir'], 'summary.txt')
     report_text = generate_summary_report(results_df, report_path)
 
-    # Step 6: Print Console Summary
     print_summary_to_console(results_df)
 
-    # Print the full report to console as well
     print("\n" + report_text)
 
     print("\n" + "=" * 70)
@@ -364,9 +333,7 @@ def main():
     print(f"  - Noise samples: {CONFIG['noise_dir']}/")
     print(f"  - Noisy (mixed): {CONFIG['mixed_dir']}/")
     print(f"  - Denoised outputs: {CONFIG['denoised_dir']}/")
-    print("\nThank you for using the Audio Noise Reduction Study tool!")
 
 
 if __name__ == '__main__':
     main()
-

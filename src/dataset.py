@@ -25,7 +25,6 @@ def load_audio(filepath):
     try:
         sample_rate, signal = wavfile.read(filepath)
 
-        # Convert to float and normalize to [-1, 1]
         if signal.dtype == np.int16:
             signal = signal.astype(np.float32) / 32768.0
         elif signal.dtype == np.int32:
@@ -35,7 +34,6 @@ def load_audio(filepath):
         else:
             signal = signal.astype(np.float32)
 
-        # Convert stereo to mono if necessary
         if len(signal.shape) > 1:
             signal = np.mean(signal, axis=1)
 
@@ -53,14 +51,12 @@ def save_audio(filepath, signal, sample_rate):
         signal: Audio signal (numpy array, normalized to [-1, 1])
         sample_rate: Sample rate in Hz
     """
-    # Clip to valid range and convert to int16
     signal = np.clip(signal, -1.0, 1.0)
     signal_int16 = (signal * 32767).astype(np.int16)
     wavfile.write(filepath, sample_rate, signal_int16)
 
 
 def calculate_signal_power(signal):
-    """Calculate the power of a signal."""
     return np.mean(signal ** 2)
 
 
@@ -76,31 +72,23 @@ def mix_audio_at_snr(clean_signal, noise_signal, target_snr_db):
     Returns:
         tuple: (mixed_signal, scaled_noise)
     """
-    # Ensure signals have same length
     min_len = min(len(clean_signal), len(noise_signal))
     clean = clean_signal[:min_len]
     noise = noise_signal[:min_len]
 
-    # Calculate power of clean signal
     clean_power = calculate_signal_power(clean)
 
-    # Calculate required noise power for target SNR
-    # SNR(dB) = 10 * log10(signal_power / noise_power)
-    # noise_power = signal_power / (10^(SNR/10))
     target_noise_power = clean_power / (10 ** (target_snr_db / 10))
 
-    # Calculate current noise power and scaling factor
     current_noise_power = calculate_signal_power(noise)
     if current_noise_power > 0:
         scaling_factor = np.sqrt(target_noise_power / current_noise_power)
     else:
         scaling_factor = 0
 
-    # Scale noise and mix
     scaled_noise = noise * scaling_factor
     mixed_signal = clean + scaled_noise
 
-    # Normalize to prevent clipping
     max_val = np.max(np.abs(mixed_signal))
     if max_val > 1.0:
         mixed_signal = mixed_signal / max_val
@@ -123,17 +111,14 @@ def generate_synthetic_audio(duration_seconds=3.0, sample_rate=16000, frequency=
     """
     t = np.linspace(0, duration_seconds, int(sample_rate * duration_seconds), False)
 
-    # Create a more complex signal with harmonics to simulate speech-like characteristics
     signal = (0.5 * np.sin(2 * np.pi * frequency * t) +
               0.3 * np.sin(2 * np.pi * frequency * 2 * t) +
               0.15 * np.sin(2 * np.pi * frequency * 3 * t) +
               0.05 * np.sin(2 * np.pi * frequency * 4 * t))
 
-    # Apply amplitude envelope (simulate word-like patterns)
     envelope = np.abs(np.sin(2 * np.pi * 2 * t)) ** 0.5
     signal = signal * envelope
 
-    # Normalize
     signal = signal / np.max(np.abs(signal)) * 0.9
 
     return signal
@@ -156,7 +141,6 @@ def generate_noise_signal(duration_seconds=3.0, sample_rate=16000, noise_type='w
     if noise_type == 'white':
         noise = np.random.randn(num_samples)
     elif noise_type == 'pink':
-        # Generate pink noise using the Voss-McCartney algorithm
         noise = np.zeros(num_samples)
         num_rows = 16
         rows = np.zeros(num_rows)
@@ -167,7 +151,6 @@ def generate_noise_signal(duration_seconds=3.0, sample_rate=16000, noise_type='w
                     rows[j] = np.random.randn()
         noise = noise / num_rows
     elif noise_type == 'brown':
-        # Generate brown noise (random walk)
         noise = np.cumsum(np.random.randn(num_samples))
         noise = noise - np.mean(noise)
     else:
@@ -196,56 +179,46 @@ def generate_dataset(clean_dir, noise_dir, output_dir, snr_levels, sample_rate=1
     """
     dataset = []
 
-    # Get list of clean files
     clean_files = []
     if os.path.exists(clean_dir):
         clean_files = [f for f in os.listdir(clean_dir) if f.endswith('.wav')]
 
-    # Get list of noise files
     noise_files = []
     if os.path.exists(noise_dir):
         noise_files = [f for f in os.listdir(noise_dir) if f.endswith('.wav')]
 
-    # If no real files found, generate synthetic data
     if not clean_files or not noise_files:
         print("No audio files found. Generating synthetic dataset...")
 
-        # Generate multiple synthetic clean signals with different characteristics
         clean_signals = [
             ('synthetic_speech_1', generate_synthetic_audio(3.0, sample_rate, 200)),
             ('synthetic_speech_2', generate_synthetic_audio(3.0, sample_rate, 300)),
             ('synthetic_speech_3', generate_synthetic_audio(3.0, sample_rate, 250)),
         ]
 
-        # Generate different noise types
         noise_signals = [
             ('white_noise', generate_noise_signal(3.0, sample_rate, 'white')),
             ('pink_noise', generate_noise_signal(3.0, sample_rate, 'pink')),
         ]
 
-        # Save clean signals to clean directory
         for clean_name, clean_signal in clean_signals:
             clean_path = os.path.join(clean_dir, f"{clean_name}.wav")
             save_audio(clean_path, clean_signal, sample_rate)
             print(f"  Saved clean signal: {clean_path}")
 
-        # Save noise signals to noise directory
         for noise_name, noise_signal in noise_signals:
             noise_path = os.path.join(noise_dir, f"{noise_name}.wav")
             save_audio(noise_path, noise_signal, sample_rate)
             print(f"  Saved noise signal: {noise_path}")
 
-        # Create mixed samples
         for clean_name, clean_signal in clean_signals:
             for noise_name, noise_signal in noise_signals:
                 for snr in snr_levels:
                     mixed_signal, scaled_noise = mix_audio_at_snr(clean_signal, noise_signal, snr)
 
-                    # Create filename
                     filename = f"{clean_name}_{noise_name}_snr{snr}dB.wav"
                     output_path = os.path.join(output_dir, filename)
 
-                    # Save mixed audio
                     save_audio(output_path, mixed_signal, sample_rate)
 
                     dataset.append({
@@ -262,7 +235,6 @@ def generate_dataset(clean_dir, noise_dir, output_dir, snr_levels, sample_rate=1
 
         print(f"Generated {len(dataset)} synthetic audio samples.")
     else:
-        # Use real audio files
         print(f"Found {len(clean_files)} clean files and {len(noise_files)} noise files.")
 
         for clean_file in clean_files:
@@ -276,13 +248,11 @@ def generate_dataset(clean_dir, noise_dir, output_dir, snr_levels, sample_rate=1
                 for snr in snr_levels:
                     mixed_signal, scaled_noise = mix_audio_at_snr(clean_signal, noise_signal, snr)
 
-                    # Create filename
                     clean_name = os.path.splitext(clean_file)[0]
                     noise_name = os.path.splitext(noise_file)[0]
                     filename = f"{clean_name}_{noise_name}_snr{snr}dB.wav"
                     output_path = os.path.join(output_dir, filename)
 
-                    # Save mixed audio
                     save_audio(output_path, mixed_signal, sr)
 
                     dataset.append({

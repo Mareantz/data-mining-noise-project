@@ -26,10 +26,8 @@ def estimate_noise_spectrum(signal, sample_rate, noise_frames=10, frame_size=512
     Returns:
         numpy array: Estimated noise magnitude spectrum
     """
-    # Extract noise samples from the beginning of the signal
     noise_samples = signal[:frame_size * noise_frames]
 
-    # Apply windowing and compute average spectrum
     window = np.hanning(frame_size)
     noise_spectra = []
 
@@ -47,7 +45,6 @@ def estimate_noise_spectrum(signal, sample_rate, noise_frames=10, frame_size=512
         spectrum = np.abs(fft(windowed_frame))
         noise_spectra.append(spectrum)
 
-    # Average the noise spectra
     if noise_spectra:
         noise_spectrum = np.mean(noise_spectra, axis=0)
     else:
@@ -61,11 +58,6 @@ def spectral_subtract(signal, sample_rate, noise_spectrum=None, frame_size=512,
     """
     Apply Spectral Subtraction for noise reduction.
 
-    This method works by:
-    1. Transforming the signal to the frequency domain using STFT
-    2. Subtracting the estimated noise magnitude spectrum
-    3. Reconstructing the signal using inverse STFT
-
     Args:
         signal: Input noisy signal (numpy array)
         sample_rate: Sample rate in Hz
@@ -78,21 +70,17 @@ def spectral_subtract(signal, sample_rate, noise_spectrum=None, frame_size=512,
     Returns:
         numpy array: Denoised signal
     """
-    # Estimate noise spectrum if not provided
     if noise_spectrum is None:
         noise_spectrum = estimate_noise_spectrum(signal, sample_rate,
                                                   frame_size=frame_size,
                                                   hop_size=hop_size)
 
-    # Initialize output signal
     num_samples = len(signal)
     output_signal = np.zeros(num_samples)
     window = np.hanning(frame_size)
 
-    # Normalization array for overlap-add
     normalization = np.zeros(num_samples)
 
-    # Process frame by frame
     num_frames = (num_samples - frame_size) // hop_size + 1
 
     for i in range(num_frames):
@@ -102,34 +90,24 @@ def spectral_subtract(signal, sample_rate, noise_spectrum=None, frame_size=512,
         if end > num_samples:
             break
 
-        # Extract and window the frame
         frame = signal[start:end] * window
 
-        # Compute FFT
         spectrum = fft(frame)
         magnitude = np.abs(spectrum)
         phase = np.angle(spectrum)
 
-        # Spectral subtraction with over-subtraction and spectral floor
-        # |S|^2 = |X|^2 - alpha * |N|^2
-        # Apply spectral floor to prevent negative values
         subtracted_magnitude = magnitude - alpha * noise_spectrum
 
-        # Apply spectral floor (minimum gain)
         spectral_floor = beta * magnitude
         subtracted_magnitude = np.maximum(subtracted_magnitude, spectral_floor)
 
-        # Reconstruct complex spectrum with original phase
         reconstructed_spectrum = subtracted_magnitude * np.exp(1j * phase)
 
-        # Inverse FFT
         reconstructed_frame = np.real(ifft(reconstructed_spectrum))
 
-        # Overlap-add
         output_signal[start:end] += reconstructed_frame * window
         normalization[start:end] += window ** 2
 
-    # Normalize by the window overlap
     normalization[normalization < 1e-8] = 1e-8
     output_signal = output_signal / normalization
 
@@ -140,10 +118,6 @@ def spectral_subtract_enhanced(signal, sample_rate, noise_spectrum=None, frame_s
                                 hop_size=256, alpha_range=(1.0, 5.0), beta=0.02):
     """
     Enhanced Spectral Subtraction with adaptive over-subtraction.
-
-    The over-subtraction factor is adapted based on the local SNR estimate:
-    - Higher alpha for frames with low SNR
-    - Lower alpha for frames with high SNR
 
     Args:
         signal: Input noisy signal
@@ -157,7 +131,6 @@ def spectral_subtract_enhanced(signal, sample_rate, noise_spectrum=None, frame_s
     Returns:
         numpy array: Denoised signal
     """
-    # Estimate noise spectrum if not provided
     if noise_spectrum is None:
         noise_spectrum = estimate_noise_spectrum(signal, sample_rate,
                                                   frame_size=frame_size,
@@ -185,15 +158,11 @@ def spectral_subtract_enhanced(signal, sample_rate, noise_spectrum=None, frame_s
         magnitude = np.abs(spectrum)
         phase = np.angle(spectrum)
 
-        # Estimate local SNR
         frame_power = np.mean(magnitude ** 2)
         local_snr = 10 * np.log10(frame_power / (noise_power + 1e-10))
 
-        # Adapt alpha based on local SNR
-        # Lower SNR -> higher alpha (more aggressive subtraction)
         alpha = alpha_max - (alpha_max - alpha_min) * np.clip(local_snr / 20, 0, 1)
 
-        # Spectral subtraction
         subtracted_magnitude = magnitude - alpha * noise_spectrum
         spectral_floor = beta * magnitude
         subtracted_magnitude = np.maximum(subtracted_magnitude, spectral_floor)

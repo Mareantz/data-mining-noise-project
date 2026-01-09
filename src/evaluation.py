@@ -10,8 +10,6 @@ def calculate_snr(signal, noise):
     """
     Calculate the Signal-to-Noise Ratio (SNR) in decibels.
 
-    SNR(dB) = 10 * log10(signal_power / noise_power)
-
     Args:
         signal: Clean/reference signal
         noise: Noise component (can be estimated as clean - denoised)
@@ -40,12 +38,10 @@ def calculate_snr_from_signals(clean_signal, noisy_signal):
     Returns:
         float: SNR in decibels
     """
-    # Ensure same length
     min_len = min(len(clean_signal), len(noisy_signal))
     clean = clean_signal[:min_len]
     noisy = noisy_signal[:min_len]
 
-    # Estimate noise as difference
     noise_estimate = noisy - clean
 
     return calculate_snr(clean, noise_estimate)
@@ -65,21 +61,17 @@ def calculate_snr_improvement(clean_signal, noisy_signal, denoised_signal):
     Returns:
         float: SNR improvement in decibels
     """
-    # Ensure same length
     min_len = min(len(clean_signal), len(noisy_signal), len(denoised_signal))
     clean = clean_signal[:min_len]
     noisy = noisy_signal[:min_len]
     denoised = denoised_signal[:min_len]
 
-    # Calculate input SNR (before denoising)
     input_noise = noisy - clean
     input_snr = calculate_snr(clean, input_noise)
 
-    # Calculate output SNR (after denoising)
     output_noise = denoised - clean
     output_snr = calculate_snr(clean, output_noise)
 
-    # Calculate improvement
     snr_improvement = output_snr - input_snr
 
     return snr_improvement
@@ -110,8 +102,6 @@ def calculate_mse(reference_signal, processed_signal):
     """
     Calculate the Mean Squared Error (MSE) between two signals.
 
-    MSE = (1/N) * sum((reference - processed)^2)
-
     Args:
         reference_signal: Reference/clean signal
         processed_signal: Processed/denoised signal
@@ -130,8 +120,6 @@ def calculate_mse(reference_signal, processed_signal):
 def calculate_psnr(reference_signal, processed_signal, max_value=1.0):
     """
     Calculate the Peak Signal-to-Noise Ratio (PSNR) in decibels.
-
-    PSNR(dB) = 10 * log10(MAX^2 / MSE) = 20 * log10(MAX / sqrt(MSE))
 
     Args:
         reference_signal: Reference/clean signal
@@ -153,8 +141,6 @@ def calculate_psnr(reference_signal, processed_signal, max_value=1.0):
 def calculate_rmse(reference_signal, processed_signal):
     """
     Calculate the Root Mean Squared Error (RMSE).
-
-    RMSE = sqrt(MSE)
 
     Args:
         reference_signal: Reference/clean signal
@@ -215,9 +201,6 @@ def evaluate_all_algorithms(clean_signal, noisy_signal, denoised_signals):
 def calculate_segmental_snr(clean_signal, processed_signal, frame_size=256, hop_size=128):
     """
     Calculate Segmental SNR (average SNR over short segments).
-
-    This metric is more perceptually relevant as it averages SNR over
-    short segments, giving more weight to quiet passages.
 
     Args:
         clean_signal: Original clean signal

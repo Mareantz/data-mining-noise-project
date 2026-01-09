@@ -56,10 +56,6 @@ def compute_wiener_gain(signal_psd, noise_psd, epsilon=1e-10):
     """
     Compute the Wiener filter gain function.
 
-    H(f) = S_ss(f) / (S_ss(f) + S_nn(f))
-
-    where S_ss is the signal PSD and S_nn is the noise PSD.
-
     Args:
         signal_psd: Signal Power Spectral Density
         noise_psd: Noise Power Spectral Density
@@ -68,10 +64,8 @@ def compute_wiener_gain(signal_psd, noise_psd, epsilon=1e-10):
     Returns:
         numpy array: Wiener filter gain
     """
-    # Estimate signal PSD (assuming signal PSD = observed PSD - noise PSD)
     clean_signal_psd = np.maximum(signal_psd - noise_psd, epsilon)
 
-    # Compute Wiener gain
     wiener_gain = clean_signal_psd / (clean_signal_psd + noise_psd + epsilon)
 
     return wiener_gain
@@ -81,14 +75,6 @@ def apply_wiener_filter(signal, sample_rate, noise_psd=None, frame_size=512,
                         hop_size=256, smoothing=0.9):
     """
     Apply Wiener filtering for noise reduction.
-
-    The Wiener filter is an optimal linear filter in the MSE sense. It computes
-    a frequency-dependent gain based on the estimated signal and noise PSDs:
-
-    H(f) = S_ss(f) / (S_ss(f) + S_nn(f))
-
-    This gain is applied in the frequency domain to suppress noise while
-    preserving the signal.
 
     Args:
         signal: Input noisy signal (numpy array)
@@ -101,7 +87,6 @@ def apply_wiener_filter(signal, sample_rate, noise_psd=None, frame_size=512,
     Returns:
         numpy array: Denoised signal
     """
-    # Estimate noise PSD if not provided
     if noise_psd is None:
         noise_psd = estimate_noise_psd(signal, sample_rate,
                                         frame_size=frame_size,
@@ -112,7 +97,6 @@ def apply_wiener_filter(signal, sample_rate, noise_psd=None, frame_size=512,
     window = np.hanning(frame_size)
     normalization = np.zeros(num_samples)
 
-    # Previous gain for temporal smoothing
     prev_gain = np.ones(frame_size)
 
     num_frames = (num_samples - frame_size) // hop_size + 1
@@ -124,38 +108,28 @@ def apply_wiener_filter(signal, sample_rate, noise_psd=None, frame_size=512,
         if end > num_samples:
             break
 
-        # Extract and window the frame
         frame = signal[start:end] * window
 
-        # Compute FFT
         spectrum = fft(frame)
         magnitude = np.abs(spectrum)
         phase = np.angle(spectrum)
 
-        # Compute signal PSD for this frame
         signal_psd = magnitude ** 2
 
-        # Compute Wiener gain
         wiener_gain = compute_wiener_gain(signal_psd, noise_psd)
 
-        # Apply temporal smoothing to reduce musical noise
         smoothed_gain = smoothing * prev_gain + (1 - smoothing) * wiener_gain
         prev_gain = smoothed_gain
 
-        # Apply gain to magnitude spectrum
         filtered_magnitude = magnitude * smoothed_gain
 
-        # Reconstruct complex spectrum
         reconstructed_spectrum = filtered_magnitude * np.exp(1j * phase)
 
-        # Inverse FFT
         reconstructed_frame = np.real(ifft(reconstructed_spectrum))
 
-        # Overlap-add
         output_signal[start:end] += reconstructed_frame * window
         normalization[start:end] += window ** 2
 
-    # Normalize
     normalization[normalization < 1e-8] = 1e-8
     output_signal = output_signal / normalization
 
@@ -166,10 +140,6 @@ def apply_wiener_filter_iterative(signal, sample_rate, noise_psd=None,
                                    frame_size=512, hop_size=256, iterations=2):
     """
     Apply iterative Wiener filtering for improved noise reduction.
-
-    Multiple iterations can improve the estimate of the clean signal PSD,
-    leading to better noise reduction. Each iteration uses the output of
-    the previous iteration to refine the signal PSD estimate.
 
     Args:
         signal: Input noisy signal
@@ -182,7 +152,6 @@ def apply_wiener_filter_iterative(signal, sample_rate, noise_psd=None,
     Returns:
         numpy array: Denoised signal
     """
-    # Estimate noise PSD if not provided
     if noise_psd is None:
         noise_psd = estimate_noise_psd(signal, sample_rate,
                                         frame_size=frame_size,
@@ -191,7 +160,6 @@ def apply_wiener_filter_iterative(signal, sample_rate, noise_psd=None,
     current_signal = signal.copy()
 
     for iteration in range(iterations):
-        # Update the signal PSD estimate based on current cleaned signal
         current_signal = apply_wiener_filter(current_signal, sample_rate,
                                               noise_psd, frame_size, hop_size)
 
@@ -203,11 +171,6 @@ def parametric_wiener_filter(signal, sample_rate, noise_psd=None,
                               alpha=0.98, beta=0.7, mu=0.98):
     """
     Parametric Wiener filter with decision-directed approach.
-
-    Uses the decision-directed approach for a priori SNR estimation:
-    - alpha: Smoothing factor for a priori SNR
-    - beta: Gain function exponent
-    - mu: Noise tracking parameter
 
     Args:
         signal: Input noisy signal
@@ -249,20 +212,16 @@ def parametric_wiener_filter(signal, sample_rate, noise_psd=None,
         magnitude = np.abs(spectrum)
         phase = np.angle(spectrum)
 
-        # A posteriori SNR
         gamma = (magnitude ** 2) / (noise_psd + epsilon)
 
-        # A priori SNR using decision-directed approach
         if i == 0:
             xi = np.maximum(gamma - 1, 0)
         else:
             xi = alpha * (np.abs(prev_clean_spectrum) ** 2) / (noise_psd + epsilon) + \
                  (1 - alpha) * np.maximum(gamma - 1, 0)
 
-        # Parametric Wiener gain
         gain = (xi / (xi + 1)) ** beta
 
-        # Apply gain
         filtered_magnitude = magnitude * gain
         prev_clean_spectrum = filtered_magnitude * np.exp(1j * phase)
 

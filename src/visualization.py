@@ -19,21 +19,16 @@ def plot_comparison_bar_chart(results_df, metric, output_path, title=None):
         output_path: Path to save the chart image
         title: Chart title (optional)
     """
-    # Get unique algorithms and SNR levels
     algorithms = results_df['algorithm'].unique()
     snr_levels = sorted(results_df['snr_level'].unique())
 
-    # Set up the figure
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    # Bar positions
     x = np.arange(len(snr_levels))
     width = 0.25
 
-    # Color palette
     colors = ['#2ecc71', '#3498db', '#e74c3c', '#9b59b6', '#f39c12']
 
-    # Plot bars for each algorithm
     for i, algo in enumerate(algorithms):
         algo_data = results_df[results_df['algorithm'] == algo]
         values = []
@@ -47,7 +42,6 @@ def plot_comparison_bar_chart(results_df, metric, output_path, title=None):
         offset = (i - len(algorithms)/2 + 0.5) * width
         bars = ax.bar(x + offset, values, width, label=algo, color=colors[i % len(colors)])
 
-        # Add value labels on bars
         for bar, val in zip(bars, values):
             height = bar.get_height()
             ax.annotate(f'{val:.2f}',
@@ -56,7 +50,6 @@ def plot_comparison_bar_chart(results_df, metric, output_path, title=None):
                        textcoords="offset points",
                        ha='center', va='bottom', fontsize=8)
 
-    # Customize the chart
     ax.set_xlabel('Input SNR Level (dB)', fontsize=12)
     ax.set_ylabel(metric.replace('_', ' ').title(), fontsize=12)
 
@@ -71,10 +64,8 @@ def plot_comparison_bar_chart(results_df, metric, output_path, title=None):
     ax.legend(loc='upper left', bbox_to_anchor=(1, 1))
     ax.grid(axis='y', alpha=0.3)
 
-    # Adjust layout
     plt.tight_layout()
 
-    # Save the figure
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
@@ -101,7 +92,6 @@ def plot_multi_metric_comparison(results_df, metrics, output_path):
     colors = ['#2ecc71', '#3498db', '#e74c3c']
 
     for ax, metric in zip(axes, metrics):
-        # Calculate mean for each algorithm
         means = []
         stds = []
         for algo in algorithms:
@@ -116,7 +106,6 @@ def plot_multi_metric_comparison(results_df, metrics, output_path):
         ax.set_title(metric.replace('_', ' ').title())
         ax.grid(axis='y', alpha=0.3)
 
-        # Add value labels
         for bar, mean in zip(bars, means):
             height = bar.get_height()
             ax.annotate(f'{mean:.3f}',
@@ -190,7 +179,6 @@ def generate_summary_report(results_df, output_path):
     lines.append("=" * 70)
     lines.append("")
 
-    # Summary statistics
     lines.append("1. DATASET SUMMARY")
     lines.append("-" * 50)
     total_samples = len(results_df)
@@ -201,7 +189,6 @@ def generate_summary_report(results_df, output_path):
     lines.append(f"   SNR levels tested: {snr_levels} dB")
     lines.append("")
 
-    # Performance by algorithm
     lines.append("2. OVERALL PERFORMANCE BY ALGORITHM")
     lines.append("-" * 50)
 
@@ -223,11 +210,9 @@ def generate_summary_report(results_df, output_path):
 
     lines.append("")
 
-    # Best algorithm determination
     lines.append("3. ALGORITHM RANKING")
     lines.append("-" * 50)
 
-    # Rank by SNR improvement
     algo_stats_df = pd.DataFrame(algo_stats)
     algo_stats_df = algo_stats_df.sort_values('avg_snr_improvement', ascending=False)
 
@@ -235,13 +220,11 @@ def generate_summary_report(results_df, output_path):
     for rank, (_, row) in enumerate(algo_stats_df.iterrows(), 1):
         lines.append(f"     {rank}. {row['algorithm']}: {row['avg_snr_improvement']:.2f} dB")
 
-    # Rank by PSNR
     algo_stats_df = algo_stats_df.sort_values('avg_psnr', ascending=False)
     lines.append("\n   Ranking by PSNR (higher is better):")
     for rank, (_, row) in enumerate(algo_stats_df.iterrows(), 1):
         lines.append(f"     {rank}. {row['algorithm']}: {row['avg_psnr']:.2f} dB")
 
-    # Rank by MSE
     algo_stats_df = algo_stats_df.sort_values('avg_mse', ascending=True)
     lines.append("\n   Ranking by MSE (lower is better):")
     for rank, (_, row) in enumerate(algo_stats_df.iterrows(), 1):
@@ -249,7 +232,6 @@ def generate_summary_report(results_df, output_path):
 
     lines.append("")
 
-    # Performance by SNR level
     lines.append("4. PERFORMANCE BY SNR LEVEL")
     lines.append("-" * 50)
 
@@ -265,11 +247,9 @@ def generate_summary_report(results_df, output_path):
 
     lines.append("")
 
-    # Conclusion
     lines.append("5. CONCLUSION")
     lines.append("-" * 50)
 
-    # Find overall best algorithm
     algo_stats_df = pd.DataFrame(algo_stats)
     best_by_snr = algo_stats_df.loc[algo_stats_df['avg_snr_improvement'].idxmax()]
     best_by_psnr = algo_stats_df.loc[algo_stats_df['avg_psnr'].idxmax()]
@@ -279,7 +259,6 @@ def generate_summary_report(results_df, output_path):
     lines.append(f"   BEST ALGORITHM BY SNR IMPROVEMENT: {best_by_snr['algorithm']}")
     lines.append(f"   - Achieved an average improvement of {best_by_snr['avg_snr_improvement']:.2f} dB")
 
-    # Calculate margin over second best
     algo_stats_sorted = algo_stats_df.sort_values('avg_snr_improvement', ascending=False)
     if len(algo_stats_sorted) > 1:
         margin = algo_stats_sorted.iloc[0]['avg_snr_improvement'] - algo_stats_sorted.iloc[1]['avg_snr_improvement']
@@ -297,7 +276,6 @@ def generate_summary_report(results_df, output_path):
     lines.append("")
     lines.append("   OVERALL RECOMMENDATION:")
 
-    # Determine overall winner (majority vote)
     votes = {}
     for algo in [best_by_snr['algorithm'], best_by_psnr['algorithm'], best_by_mse['algorithm']]:
         votes[algo] = votes.get(algo, 0) + 1
@@ -307,7 +285,6 @@ def generate_summary_report(results_df, output_path):
     lines.append(f"   the {overall_best} algorithm demonstrates the best overall")
     lines.append(f"   performance for audio noise reduction in this study.")
 
-    # Add algorithm-specific insights
     lines.append("")
     lines.append("   ALGORITHM-SPECIFIC INSIGHTS:")
     lines.append("   - Butterworth Filter (Low Complexity): Simple frequency-domain filtering,")
@@ -322,7 +299,6 @@ def generate_summary_report(results_df, output_path):
     lines.append("END OF REPORT")
     lines.append("=" * 70)
 
-    # Write to file
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     with open(output_path, 'w') as f:
         f.write('\n'.join(lines))
@@ -345,7 +321,6 @@ def print_summary_to_console(results_df):
 
     algorithms = results_df['algorithm'].unique()
 
-    # Calculate and display average metrics per algorithm
     print("\nAverage Performance by Algorithm:")
     print("-" * 50)
 
@@ -362,7 +337,6 @@ def print_summary_to_console(results_df):
     summary_df = pd.DataFrame(summary_data)
     print(summary_df.to_string(index=False))
 
-    # Find best performing algorithm
     best_snr_idx = summary_df['SNR Improvement (dB)'].idxmax()
     best_algo = summary_df.loc[best_snr_idx, 'Algorithm']
     best_snr_imp = summary_df.loc[best_snr_idx, 'SNR Improvement (dB)']

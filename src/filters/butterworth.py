@@ -37,10 +37,6 @@ def apply_lowpass_butterworth(signal, sample_rate, cutoff_freq=4000, order=5):
     """
     Apply a low-pass Butterworth filter to remove high-frequency noise.
 
-    This is a simple frequency-domain filter that removes all frequencies
-    above the cutoff frequency. Effective for noise that is predominantly
-    in higher frequency ranges.
-
     Args:
         signal: Input audio signal (numpy array)
         sample_rate: Sample rate in Hz
@@ -50,11 +46,8 @@ def apply_lowpass_butterworth(signal, sample_rate, cutoff_freq=4000, order=5):
     Returns:
         numpy array: Filtered signal
     """
-    # Design the filter
     b, a = design_butterworth_lowpass(cutoff_freq, sample_rate, order)
 
-    # Apply the filter using filtfilt for zero-phase filtering
-    # This applies the filter twice (forward and backward) to eliminate phase distortion
     filtered_signal = filtfilt(b, a, signal)
 
     return filtered_signal
