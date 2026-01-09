@@ -48,19 +48,25 @@ To evaluate performance, we calculate the following metrics for every audio file
 ### 1. SNR (Signal-to-Noise Ratio)
 - **Definition**: A measure of signal strength relative to background noise.
 - **Calculation**: 
-  $$ SNR_{dB} = 10 \cdot \log_{10}\left(\frac{\sum (\text{Clean Signal})^2}{\sum (\text{Clean Signal} - \text{Processed Signal})^2}\right) $$
+  ```
+  SNR_dB = 10 * log10( sum(Clean_Signal^2) / sum((Clean_Signal - Processed_Signal)^2) )
+  ```
 - **Interpretation**: Higher is better. A positive **SNR Improvement** means the algorithm successfully reduced noise without destroying the speech.
 
 ### 2. MSE (Mean Squared Error)
 - **Definition**: The average squared difference between the original clean signal and the denoised signal.
 - **Calculation**: 
-  $$ MSE = \frac{1}{N} \sum_{i=1}^{N} (clean_i - denoised_i)^2 $$
+  ```
+  MSE = (1/N) * sum( (clean_i - denoised_i)^2 )
+  ```
 - **Interpretation**: Lower is better. Measures the raw "distance" between the result and the ideal.
 
 ### 3. PSNR (Peak Signal-to-Noise Ratio)
 - **Definition**: Ratio between the maximum possible power of a signal and the power of corrupting noise.
 - **Calculation**: 
-  $$ PSNR_{dB} = 10 \cdot \log_{10}\left(\frac{MAX^2}{MSE}\right) $$
+  ```
+  PSNR_dB = 10 * log10( MAX^2 / MSE )
+  ```
   *(Where MAX is the maximum amplitude of the signal, usually 1.0 for normalized audio)*
 - **Interpretation**: Higher is better. Commonly used to assess quality reconstruction.
 
@@ -87,4 +93,3 @@ The script will:
 -   Apply all three algorithms to every file.
 -   Save denoised audio to `data/denoised/`.
 -   Generate charts and summary reports in `output/`.
-
